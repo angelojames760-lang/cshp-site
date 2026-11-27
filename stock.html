@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>cshop.dev — Stock Vault</title>
+  <link href="https://googleapis.com" rel="stylesheet">
+  <style>
+    :root { --bg-main: #0f1012; --bg-card: #18191c; --bg-input: #232428; --border: #2b2d31; --accent: #5865f2; --accent-hover: #4752c4; --success: #23a559; --danger: #f23f43; --text-main: #f2f3f5; --text-muted: #949ba4; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background: var(--bg-main); color: var(--text-main); display: flex; justify-content: center; align-items: center; padding: 20px 14px; min-height: 100vh; }
+    .app-shell { width: 100%; max-width: 480px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: 0 14px 36px rgba(0,0,0,0.6); }
+    .header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .brand { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+    .brand-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; }
+    .version { font-size: 11px; background: var(--bg-input); color: var(--text-muted); padding: 3px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+    .lock-screen { padding: 36px 24px; text-align: center; }
+    .lock-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .lock-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 22px; }
+    .key-input { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+    .main-dashboard { display: none; }
+    .content { padding: 20px; }
+    .field-group { margin-bottom: 14px; }
+    label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; letter-spacing: 0.4px; }
+    input, textarea { width: 100%; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main); padding: 10px 12px; border-radius: 6px; font-size: 13px; outline: none; transition: border-color 0.15s; }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 85px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+    .btn { width: 100%; background: var(--accent); color: #fff; border: none; padding: 11px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+    .btn:hover { background: var(--accent-hover); }
+    .btn-success { background: var(--success); }
+    .divider { height: 1px; background: var(--border); margin: 18px 0; }
+    .stock-card { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+    .stock-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .stock-name { font-weight: 600; font-size: 13px; }
+    .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+    .badge-in { background: rgba(35,165,89,0.18); color: #4ade80; }
+    .badge-low { background: rgba(240,178,50,0.18); color: #facc15; }
+    .badge-out { background: rgba(242,63,67,0.18); color: #f87171; }
+    .stock-actions { display: flex; gap: 8px; }
+    .stock-actions button { padding: 8px; font-size: 12px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
+    .btn-dispense { flex: 2; background: var(--accent); color: #fff; }
+    .btn-dispense:disabled { background: #2e3035; color: #6d7280; cursor: not-allowed; }
+    .btn-del { flex: 1; background: rgba(242,63,67,0.15); color: #f87171; }
+    .toast { font-size: 12px; text-align: center; margin-top: 10px; min-height: 16px; color: var(--success); }
+    .footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
+    .logout-link { color: var(--danger); cursor: pointer; font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="header">
+    <div class="brand"><span class="brand-dot"></span> cshop.dev | Stock Vault</div>
+    <div class="version">v1.1</div>
+  </div>
+  <div id="lockScreen" class="lock-screen">
+    <div class="lock-title">Vault Authentication</div>
+    <div class="lock-sub">Enter your authorized license key to access inventory.</div>
+    <input type="text" id="licenseInput" class="key-input" placeholder="CSHOP-XXXX-XXXX-XXXX" onkeydown="if(event.key==='Enter') verifyLicense()" />
+    <button type="button" class="btn" onclick="verifyLicense()">Unlock Stock Vault</button>
+    <div id="lockToast" class="toast"></div>
+  </div>
+  <div id="mainDashboard" class="main-dashboard">
+    <div class="content">
+      <div class="field-group"><label>Product / Category Name</label><input type="text" id="prodName" placeholder="e.g. Nitro Boost 1M, Netflix UHD" /></div>
+      <div class="field-group"><label>Accounts / Keys (One per line)</label><textarea id="prodItems" placeholder="email1@domain.com:pass123&#10;email2@domain.com:pass456"></textarea></div>
+      <button type="button" class="btn" onclick="addStock()">Add / Restock Product</button>
+      <div id="toast" class="toast"></div>
+      <div class="divider"></div>
+      <label>Live Inventory</label>
+      <div id="inventoryList"></div>
+      <div class="divider"></div>
+      <div class="field-group"><label>Discord Webhook URL (Optional Report)</label><input type="text" id="whUrl" placeholder="https://discord.com..." /></div>
+      <button type="button" class="btn btn-success" onclick="sendStockWebhook()">Post Live Stock Report</button>
+    </div>
+    <div class="footer"><span>Nexus Digital Operations</span><span class="logout-link" onclick="lockSession()">Lock Session</span></div>
+  </div>
+</div>
+<script>
+  const VAULT_REV = "v_102";
+  if (localStorage.getItem("cshop_vault_rev") !== VAULT_REV) {
+    localStorage.removeItem("cshop_vault_key");
+    localStorage.setItem("cshop_vault_rev", VAULT_REV);
+  }
+
+  const ENCODED_KEYS = ["Q1NIT1AtMjAyNi1ORVcx", "Q1NIT1AtMjAyNi1WSVAy"];
+
+  function isValidVaultKey(k) {
+    try { return ENCODED_KEYS.includes(btoa(k)); } catch { return false; }
+  }
+
+  function checkAuth() {
+    const savedKey = localStorage.getItem("cshop_vault_key");
+    if (savedKey && isValidVaultKey(savedKey)) {
+      document.getElementById("lockScreen").style.display = "none";
+      document.getElementById("mainDashboard").style.display = "block";
+    } else {
+      document.getElementById("lockScreen").style.display = "block";
+      document.getElementById("mainDashboard").style.display = "none";
+    }
+  }
+
+  function verifyLicense() {
+    const input = document.getElementById("licenseInput").value.trim().toUpperCase();
+    const lockToast = document.getElementById("lockToast");
+    if (!input) return;
+    if (isValidVaultKey(input)) {
+      localStorage.setItem("cshop_vault_key", input);
+      lockToast.style.color = "#23a559";
+      lockToast.textContent = "Access granted.";
+      setTimeout(checkAuth, 300);
+    } else {
+      lockToast.style.color = "#f23f43";
+      lockToast.textContent = "Invalid or unauthorized license key.";
+    }
+  }
+
+  function lockSession() {
+    localStorage.removeItem("cshop_vault_key");
+    document.getElementById("licenseInput").value = "";
+    checkAuth();
+  }
+
+  let inventory = JSON.parse(localStorage.getItem("cshop_inventory")) || {};
+  document.getElementById("whUrl").value = localStorage.getItem("cshop_wh") || "";
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById("toast");
+    t.style.color = isError ? "#f23f43" : "#23a559";
+    t.textContent = msg;
+    setTimeout(() => { t.textContent = ""; }, 3000);
+  }
+
+  function saveState() {
+    localStorage.setItem("cshop_inventory", JSON.stringify(inventory));
+    renderInventory();
+  }
+
+  function addStock() {
+    const name = document.getElementById("prodName").value.trim();
+    const raw = document.getElementById("prodItems").value.trim();
+    if (!name || !raw) return showToast("Product name and items are required.", true);
+    const lines = raw.split("\n").map(l => l.trim()).filter(l => l !== "");
+    if (!inventory[name]) inventory[name] = [];
+    inventory[name].push(...lines);
+    document.getElementById("prodName").value = "";
+    document.getElementById("prodItems").value = "";
+    saveState();
+    showToast(`Added ${lines.length} item(s) to ${name}.`);
+  }
+
+  function dispenseOne(name) {
+    if (!inventory[name] || inventory[name].length === 0) return;
+    const item = inventory[name].shift();
+    navigator.clipboard.writeText(item).then(() => showToast(`Dispensed 1 ${name} item.`)).catch(() => alert("Copied:\n" + item));
+    saveState();
+  }
+
+  function deleteCategory(name) {
+    if (confirm(`Remove category "${name}"?`)) {
+      delete inventory[name];
+      saveState();
+    }
+  }
+
+  function renderInventory() {
+    const list = document.getElementById("inventoryList");
+    const keys = Object.keys(inventory);
+    if (keys.length === 0) {
+      list.innerHTML = `<div style="text-align:center;color:#949ba4;font-size:12px;padding:16px 0;">No active inventory.</div>`;
+      return;
+    }
+    list.innerHTML = "";
+    keys.forEach(name => {
+      const count = inventory[name].length;
+      const badgeClass = count === 0 ? "badge-out" : (count <= 3 ? "badge-low" : "badge-in");
+      const badgeText = count === 0 ? "OUT OF STOCK" : (count <= 3 ? `${count} LOW` : `${count} IN STOCK`);
+
+      const card = document.createElement("div");
+card.className = "stock-card";
+
+      const top = document.createElement("div");
+      top.className = "stock-top";
+      const title = document.createElement("span");
+      title.className = "stock-name";
+      title.textContent = name;
+      const badge = document.createElement("span");
+      badge.className = `badge ${badgeClass}`;
+      badge.textContent = badgeText;
+      top.append(title, badge);
+
+      const actions = document.createElement("div");
+      actions.className = "stock-actions";
+      const btnDisp = document.createElement("button");
+      btnDisp.className = "btn-dispense";
+      btnDisp.textContent = "Copy 1 & Deduct";
+      btnDisp.disabled = count === 0;
+      btnDisp.onclick = () => dispenseOne(name);
+
+      const btnDel = document.createElement("button");
+      btnDel.className = "btn-del";
+      btnDel.textContent = "Delete";
+      btnDel.onclick = () => deleteCategory(name);
+
+      actions.append(btnDisp, btnDel);
+      card.append(top, actions);
+      list.appendChild(card);
+    });
+  }
+
+  async function sendStockWebhook() {
+    const url = document.getElementById("whUrl").value.trim();
+    if (!url) return showToast("Webhook URL is required.", true);
+    localStorage.setItem("cshop_wh", url);
+    const keys = Object.keys(inventory);
+    if (keys.length === 0) return showToast("Inventory is empty.", true);
+    let desc = "";
+    keys.forEach(name => {
+      const count = inventory[name].length;
+      desc += `• **${name}**: ${count > 0 ? `🟢 **${count}** available` : `🔴 **Out of Stock**`}\n`;
+    });
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "cshop.dev Stock Bot", embeds: [{ title: "LIVE INVENTORY STATUS", description: desc, color: 5793266 }] })
+      });
+      showToast(res.ok ? "Stock report posted." : "Endpoint rejected request.", !res.ok);
+    } catch { showToast("Network error.", true); }
+  }
+
+  checkAuth();
+  renderInventory();
+</script>
+</body>
+</html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Stocks - CheapShop</title>
+  <meta name="description" content="Updated list ng mga available stocks sa CheapShop.">
+  
+  <meta property="og:site_name" content="CheapShop">
+  <meta property="og:title" content="Stocks - CheapShop">
+</head>
